@@ -36,7 +36,11 @@ export const MOVES: Record<string, Move> = {
   vinewhip: { name: "CHIC. VINHA", type: "grass", power: 45, accuracy: 100, pp: 25, category: "special" },
   bubble: { name: "BOLHA", type: "water", power: 40, accuracy: 100, pp: 30, category: "special" },
   leer: { name: "OLHAR FEIO", type: "normal", power: 0, accuracy: 100, pp: 30, category: "status", effect: "lower-defense" },
+  gust: { name: "RAJADA", type: "flying", power: 40, accuracy: 100, pp: 35, category: "special" },
+  quickattack: { name: "ATAQUE RÁPIDO", type: "normal", power: 40, accuracy: 100, pp: 30, category: "physical" },
+  sandattack: { name: "ATQ. DE AREIA", type: "ground", power: 0, accuracy: 100, pp: 15, category: "status", effect: "lower-attack" },
 };
+
 
 export type Species = {
   id: number;
