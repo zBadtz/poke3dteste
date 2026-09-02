@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { SaveRepository, useGame } from "./store";
 import { Attract } from "./Attract";
 import logo from "../assets/logo.webp.asset.json";
+import bg from "../assets/intro/bg.png.asset.json";
+
 
 type Stage = "logo" | "press" | "menu";
 
