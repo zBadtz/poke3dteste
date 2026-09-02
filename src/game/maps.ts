@@ -7,6 +7,8 @@ export type NPC = {
   sheet: string;
   facing: Dir;
   lines: string[];
+  /** número de quadros na folha de sprite (12 = animado, 4 = estático) */
+  frames?: number;
 };
 export type Sign = { x: number; y: number; lines: string[] };
 
