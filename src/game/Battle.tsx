@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MOVES, damage, spriteUrl, xpToNext, type Mon } from "./data";
 import { useGame } from "./store";
 
@@ -47,7 +47,6 @@ export function Battle() {
   const [over, setOver] = useState<null | "win" | "lose">(null);
   const [shake, setShake] = useState<"none" | "player" | "foe">("none");
   const [intro, setIntro] = useState(true);
-  const queue = useRef<string[]>([]);
 
   useEffect(() => {
     const t = setTimeout(() => setIntro(false), 900);

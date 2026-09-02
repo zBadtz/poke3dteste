@@ -1,6 +1,6 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import * as THREE from "three";
 import { MAPS, isSolid, type Dir, type GameMap } from "./maps";
 import { useGame } from "./store";
@@ -352,7 +352,7 @@ export function Overworld() {
 
 function TouchPad() {
   const press = (k: string) => ({
-    onPointerDown: (e: React.PointerEvent) => {
+    onPointerDown: (e: RPointerEvent) => {
       e.preventDefault();
       keys[k] = true;
       window.dispatchEvent(new KeyboardEvent("keydown", { key: k }));
