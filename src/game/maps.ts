@@ -1,4 +1,14 @@
-export type Warp = { x: number; y: number; to: string; tx: number; ty: number; facing?: Dir };
+export type WarpKind = "step" | "door" | "stair";
+export type Warp = {
+  x: number;
+  y: number;
+  to: string;
+  tx: number;
+  ty: number;
+  facing?: Dir;
+  /** step = ao pisar, door = apertando A de frente, stair = ao pisar em cima */
+  kind?: WarpKind;
+};
 export type Dir = "down" | "up" | "left" | "right";
 export type NPC = {
   id: string;
@@ -61,8 +71,8 @@ export const MAPS: Record<string, GameMap> = {
       [7, 17, 10, 18], // água
     ]),
     warps: [
-      { x: 7, y: 7, to: "house1f", tx: 4, ty: 8, facing: "up" },
-      { x: 16, y: 13, to: "lab", tx: 7, ty: 9, facing: "up" },
+      { x: 6, y: 7, to: "house1f", tx: 4, ty: 8, facing: "up", kind: "door" },
+      { x: 16, y: 13, to: "lab", tx: 7, ty: 9, facing: "up", kind: "door" },
     ],
     npcs: [
       {
@@ -94,14 +104,14 @@ export const MAPS: Record<string, GameMap> = {
       [0, 0, 12, 2], // parede/bancadas do fundo
       [0, 0, 0, 9], // borda esquerda
       [0, 9, 12, 9], // borda inferior
-      [11, 0, 12, 3], // escada
+      [11, 0, 12, 2], // escada (o degrau de baixo é pisável)
       [12, 4, 12, 8], // parede direita
       [5, 4, 8, 5], // mesa e cadeiras
       [1, 6, 1, 7], // vaso esquerdo
     ]),
     warps: [
-      { x: 4, y: 8, to: "pallet", tx: 7, ty: 8, facing: "down" },
-      { x: 11, y: 4, to: "house2f", tx: 8, ty: 4, facing: "down" },
+      { x: 4, y: 8, to: "pallet", tx: 6, ty: 8, facing: "down", kind: "step" },
+      { x: 11, y: 3, to: "house2f", tx: 8, ty: 3, facing: "down", kind: "stair" },
     ],
     npcs: [
       {
@@ -135,7 +145,7 @@ export const MAPS: Record<string, GameMap> = {
       [1, 5, 2, 6], // cama
       [6, 4, 6, 6], // televisão e videogame
     ]),
-    warps: [{ x: 8, y: 3, to: "house1f", tx: 11, ty: 4, facing: "down" }],
+    warps: [{ x: 8, y: 3, to: "house1f", tx: 11, ty: 3, facing: "down", kind: "stair" }],
     npcs: [],
     signs: [
       { x: 6, y: 4, lines: ["O seu videogame. Talvez depois da aventura..."] },
@@ -161,7 +171,7 @@ export const MAPS: Record<string, GameMap> = {
       [9, 4, 12, 5], // mesa das poké bolas
     ]),
 
-    warps: [{ x: 7, y: 9, to: "pallet", tx: 16, ty: 14, facing: "down" }],
+    warps: [{ x: 7, y: 9, to: "pallet", tx: 16, ty: 14, facing: "down", kind: "step" }],
     npcs: [],
     signs: [],
   },
