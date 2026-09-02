@@ -55,10 +55,15 @@ export function Title({ onNewGame }: { onNewGame: () => void }) {
       className="relative h-full w-full overflow-hidden bg-black select-none"
       onClick={() => (stage === "menu" ? select(index) : setStage(stage === "logo" ? "press" : "menu"))}
     >
-      {/* céu / parallax */}
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,#f7c331_0%,#ef6d34_45%,#8c2f2f_100%)]" />
-      <div className="title-clouds absolute inset-0 opacity-40" />
-      <div className="title-flames absolute inset-x-0 bottom-0 h-1/2" />
+      {/* fundo: cena Gengar x Nidorino da abertura original */}
+      <img
+        src={bg.url}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ imageRendering: "pixelated" }}
+      />
+      <div className="absolute inset-0 bg-black/25" />
+
 
       {/* logo */}
       <div className="relative flex h-full flex-col items-center justify-center gap-6 px-4">
