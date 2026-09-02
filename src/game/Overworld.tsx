@@ -260,7 +260,9 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
     }
 
     // câmera segue o jogador, presa aos limites do mapa
-    const zoom = Math.max(2, Math.floor(Math.min(size.width / 260, size.height / 190)));
+    const zoom = map.outdoor
+      ? Math.max(2, Math.floor(Math.min(size.width / 260, size.height / 190)))
+      : Math.max(2, Math.floor(Math.min(size.width / (map.wpx + 8), size.height / (map.hpx + 8))));
     camera.zoom = zoom;
     const halfW = size.width / (2 * zoom);
     const halfH = size.height / (2 * zoom);
