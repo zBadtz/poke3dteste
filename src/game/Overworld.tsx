@@ -126,7 +126,7 @@ type Player = {
 function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing: Dir) => void }) {
   const { camera, size } = useThree();
   const state = useGame();
-  const map = MAPS[state.mapId];
+  const map = MAPS[state.mapId] ?? MAPS["pallet"]!;
   const p = useRef<Player>({
     px: state.x * TILE + TILE / 2,
     py: state.y * TILE + TILE / 2,
@@ -183,7 +183,7 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
     if (map.id === "lab" && fy === 5 && fx >= 9 && fx <= 11 && d === "up") {
       const key = STARTERS[fx - 9] as StarterKey;
       if (s.starter) return s.say(["Você já escolheu o seu parceiro!"]);
-      const sp = SPECIES[key];
+      const sp = SPECIES[key]!;
       return s.say(
         [
           `Então você quer ${sp.name}?`,

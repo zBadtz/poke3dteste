@@ -39,10 +39,10 @@ function Info({ mon, foe }: { mon: Mon; foe?: boolean }) {
 
 export function Battle() {
   const { playerName, rivalName, party, rivalParty, setPhase, say } = useGame();
-  const [player, setPlayer] = useState<Mon>(() => structuredClone(party[0]));
-  const [foe, setFoe] = useState<Mon>(() => structuredClone(rivalParty[0]));
+  const [player, setPlayer] = useState<Mon>(() => structuredClone(party[0]!));
+  const [foe, setFoe] = useState<Mon>(() => structuredClone(rivalParty[0]!));
   const [menu, setMenu] = useState<Menu>("main");
-  const [text, setText] = useState(`${rivalName} enviou ${rivalParty[0].species.name}!`);
+  const [text, setText] = useState(`${rivalName} enviou ${rivalParty[0]!.species.name}!`);
   const [busy, setBusy] = useState(false);
   const [over, setOver] = useState<null | "win" | "lose">(null);
   const [shake, setShake] = useState<"none" | "player" | "foe">("none");
@@ -62,7 +62,7 @@ export function Battle() {
   const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   async function useMove(attacker: Mon, defender: Mon, moveKey: string, whoAttacks: "player" | "foe") {
-    const move = MOVES[moveKey];
+    const move = MOVES[moveKey]!;
     setText(`${attacker.species.name} usou ${move.name}!`);
     await wait(750);
 
@@ -110,7 +110,7 @@ export function Battle() {
     setMenu("main");
 
     const first = player.spe >= foe.spe;
-    const foeMove = foe.moves[Math.floor(Math.random() * foe.moves.length)].key;
+    const foeMove = foe.moves[Math.floor(Math.random() * foe.moves.length)]!.key;
 
     let curPlayer = player;
     let curFoe = foe;
@@ -236,7 +236,7 @@ export function Battle() {
                 {player.moves.map((m) => (
                   <MenuBtn
                     key={m.key}
-                    label={MOVES[m.key].name}
+                    label={MOVES[m.key]!.name}
                     sub={`PP ${m.pp}`}
                     onClick={() => {
                       if (m.pp <= 0) return setText("Não há PP restante para esse golpe!");
