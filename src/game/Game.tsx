@@ -32,7 +32,7 @@ export function Game() {
 
   return (
     <main className="fixed inset-0 flex items-center justify-center bg-black">
-      <div className="relative h-full w-full max-w-[1100px]">
+      <div className="relative h-full w-full">
         {phase === "title" && !introMode && <Title onNewGame={() => setIntroMode(true)} />}
         {phase === "title" && introMode && <Intro />}
         {phase === "overworld" && (
