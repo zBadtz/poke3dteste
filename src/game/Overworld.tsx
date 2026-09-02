@@ -289,7 +289,8 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
         <Sprite
           key={n.id}
           url={n.sheet}
-          frame={DIR_ROW[n.facing]}
+          frames={n.frames ?? 12}
+          frame={n.frames === 4 ? DIR_4[n.facing] : DIR_ROW[n.facing]}
           x={n.x * TILE + TILE / 2}
           y={n.y * TILE + TILE / 2 - 4}
         />
