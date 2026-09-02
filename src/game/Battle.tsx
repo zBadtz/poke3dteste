@@ -38,18 +38,23 @@ function Info({ mon, foe }: { mon: Mon; foe?: boolean }) {
 }
 
 export function Battle() {
-  const { playerName, rivalName, party, rivalParty, setPhase, say } = useGame();
+  const { playerName, rivalName, party, rivalParty, wild, setPhase, say } = useGame();
+  const isWild = !!wild;
   const [player, setPlayer] = useState<Mon>(() => structuredClone(party[0]!));
-  const [foe, setFoe] = useState<Mon>(() => structuredClone(rivalParty[0]!));
+  const [foe, setFoe] = useState<Mon>(() => structuredClone((wild ?? rivalParty[0])!));
   const [menu, setMenu] = useState<Menu>("main");
-  const [text, setText] = useState(`${rivalName} enviou ${rivalParty[0]!.species.name}!`);
+  const [text, setText] = useState(
+    isWild
+      ? `Um ${wild!.species.name} selvagem apareceu!`
+      : `${rivalName} enviou ${rivalParty[0]!.species.name}!`,
+  );
   const [busy, setBusy] = useState(false);
   const [over, setOver] = useState<null | "win" | "lose">(null);
   const [shake, setShake] = useState<"none" | "player" | "foe">("none");
   const [intro, setIntro] = useState(true);
 
   useEffect(() => {
-    const t = setTimeout(() => setIntro(false), 900);
+    const t = setTimeout(() => setIntro(false), 1200);
     return () => clearTimeout(t);
   }, []);
 
@@ -147,6 +152,11 @@ export function Battle() {
   }
 
   function leave() {
+    if (isWild) {
+      useGame.setState({ wild: null });
+      setPhase("overworld");
+      return;
+    }
     useGame.getState().setFlag("beatRival", over === "win");
     setPhase("overworld");
     say(
@@ -168,9 +178,10 @@ export function Battle() {
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#f8f8f8]">
       <div
-        className={`absolute inset-0 bg-black transition-opacity duration-500 ${
+        className={`absolute inset-0 z-30 bg-black transition-opacity duration-500 ${
           intro ? "opacity-100" : "opacity-0"
-        } pointer-events-none z-30`}
+        } pointer-events-none`}
+        style={intro ? { animation: "battle-wipe .9s ease-out both" } : undefined}
       />
       {/* cenário */}
       <div className="absolute inset-0 bg-[linear-gradient(180deg,#8ed0f0_0%,#d8f0ff_55%,#f0e8c8_55%,#e0d0a0_100%)]" />
@@ -184,6 +195,7 @@ export function Battle() {
         <img
           src={spriteUrl(foe.species.id)}
           alt={foe.species.name}
+          style={{ animation: "battle-in .7s .25s ease-out both", ["--from" as string]: "160px" }}
           className={`pixelated -mt-24 h-24 w-24 ${shake === "foe" ? "animate-[hit_0.3s]" : ""} ${
             foe.hp <= 0 ? "translate-y-10 opacity-0 transition-all duration-500" : ""
           }`}
@@ -195,6 +207,7 @@ export function Battle() {
         <img
           src={spriteUrl(player.species.id, true)}
           alt={player.species.name}
+          style={{ animation: "battle-in .7s .25s ease-out both", ["--from" as string]: "-160px" }}
           className={`pixelated h-28 w-28 ${shake === "player" ? "animate-[hit_0.3s]" : ""} ${
             player.hp <= 0 ? "translate-y-10 opacity-0 transition-all duration-500" : ""
           }`}
@@ -229,7 +242,17 @@ export function Battle() {
                 <MenuBtn label="LUTAR" onClick={() => setMenu("fight")} />
                 <MenuBtn label="BOLSA" onClick={() => setText("Você não tem itens ainda!")} />
                 <MenuBtn label="POKéMON" onClick={() => setText(`${player.species.name} está pronto para lutar!`)} />
-                <MenuBtn label="FUGIR" onClick={() => setText("Não dá para fugir de uma batalha de treinadores!")} />
+                <MenuBtn
+                  label="FUGIR"
+                  onClick={() => {
+                    if (!isWild) return setText("Não dá para fugir de uma batalha de treinadores!");
+                    setText("Você fugiu em segurança!");
+                    setTimeout(() => {
+                      useGame.setState({ wild: null });
+                      setPhase("overworld");
+                    }, 700);
+                  }}
+                />
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-1">
