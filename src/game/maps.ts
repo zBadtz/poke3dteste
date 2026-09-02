@@ -28,7 +28,7 @@ function grid(cols: number, rows: number, rects: [number, number, number, number
   const g: boolean[][] = Array.from({ length: rows }, () => Array(cols).fill(false));
   for (const [x0, y0, x1, y1] of rects) {
     for (let y = y0; y <= y1; y++)
-      for (let x = x0; x <= x1; x++) if (g[y] && g[y][x] !== undefined) g[y][x] = true;
+      for (let x = x0; x <= x1; x++) if (g[y] && g[y]![x] !== undefined) g[y]![x] = true;
   }
   return g;
 }

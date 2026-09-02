@@ -101,7 +101,7 @@ const statCalc = (b: number, lvl: number, hp = false) =>
     : Math.floor(((2 * b + 31) * lvl) / 100) + 5;
 
 export function createMon(key: string, level: number): Mon {
-  const s = SPECIES[key];
+  const s = SPECIES[key]!;
   const maxHp = statCalc(s.base.hp, level, true);
   return {
     key,
@@ -114,7 +114,7 @@ export function createMon(key: string, level: number): Mon {
     spa: statCalc(s.base.spa, level),
     spd: statCalc(s.base.spd, level),
     spe: statCalc(s.base.spe, level),
-    moves: s.moves.slice(0, 4).map((m) => ({ key: m, pp: MOVES[m].pp })),
+    moves: s.moves.slice(0, 4).map((m) => ({ key: m, pp: MOVES[m]!.pp })),
     xp: 0,
     stages: { atk: 0, def: 0 },
   };
