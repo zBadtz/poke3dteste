@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createMon, RIVAL_PICK, type Mon, type StarterKey } from "./data";
+import { createMon, RIVAL_PICK, WILD, type Mon, type StarterKey } from "./data";
 import type { Dir } from "./maps";
 
 export type Phase = "title" | "intro" | "overworld" | "battle";
@@ -52,6 +52,7 @@ type State = {
   starter: StarterKey | null;
   party: Mon[];
   rivalParty: Mon[];
+  wild: Mon | null;
   flags: Record<string, boolean>;
   dialogue: string[] | null;
   onDialogueEnd: (() => void) | null;
@@ -62,6 +63,7 @@ type State = {
   say: (lines: string[], onEnd?: () => void) => void;
   advanceDialogue: () => void;
   chooseStarter: (key: StarterKey) => void;
+  startWild: (mapId: string) => boolean;
   setFlag: (f: string, v?: boolean) => void;
   persist: () => void;
 };
@@ -77,6 +79,7 @@ export const useGame = create<State>((set, get) => ({
   starter: null,
   party: [],
   rivalParty: [],
+  wild: null,
   flags: {},
   dialogue: null,
   onDialogueEnd: null,
@@ -129,6 +132,16 @@ export const useGame = create<State>((set, get) => ({
       set({ dialogue: null, onDialogueEnd: null });
       onDialogueEnd?.();
     }
+  },
+
+  startWild: (mapId) => {
+    const table = WILD[mapId];
+    const s = get();
+    if (!table || !table.length || !s.party.length) return false;
+    const pick = table[Math.floor(Math.random() * table.length)]!;
+    const level = pick.min + Math.floor(Math.random() * (pick.max - pick.min + 1));
+    set({ wild: createMon(pick.key, level), phase: "battle" });
+    return true;
   },
 
   chooseStarter: (key) => {
