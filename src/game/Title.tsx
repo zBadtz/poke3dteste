@@ -61,17 +61,18 @@ export function Title({ onNewGame }: { onNewGame: () => void }) {
 
       {/* logo */}
       <div className="relative flex h-full flex-col items-center justify-center gap-6 px-4">
-        <div className="title-logo text-center">
-          <div className="pixel text-[10px] tracking-[0.35em] text-white/90 drop-shadow-[0_2px_0_rgba(0,0,0,0.6)]">
-            POKéMON
-          </div>
-          <div className="mt-2 pixel text-4xl font-black tracking-tight text-[#ffd34e] [text-shadow:0_0_10px_#ff6a00,0_4px_0_#a11d1d,0_6px_10px_rgba(0,0,0,0.6)] sm:text-6xl">
-            FireRed
-          </div>
-          <div className="mt-3 pixel text-[8px] tracking-[0.3em] text-white/80">
+        <div className="title-logo relative w-[78%] max-w-[560px] text-center">
+          <img
+            src={logo.url}
+            alt="Pokémon FireRed"
+            className="w-full drop-shadow-[0_8px_14px_rgba(0,0,0,0.55)]"
+          />
+          <span className="title-shine pointer-events-none absolute inset-0" />
+          <div className="mt-2 pixel text-[8px] tracking-[0.3em] text-white/85 drop-shadow-[0_2px_0_#000]">
             KANTO 2.5D ONLINE
           </div>
         </div>
+
 
         {stage === "press" && (
           <div className="pixel animate-[blink_1s_steps(1)_infinite] text-[10px] text-white drop-shadow-[0_2px_0_#000]">
