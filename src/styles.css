@@ -233,3 +233,43 @@ canvas {
   100% { clip-path: circle(85% at 50% 50%); }
 }
 
+
+/* ---- Abertura (quadros originais) ---- */
+@keyframes intro-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.intro-shot {
+  animation: intro-fade-in 0.18s linear both;
+}
+
+@keyframes intro-zoom-kf {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+
+.intro-zoom {
+  animation: intro-fade-in 0.18s linear both, intro-zoom-kf 1.4s ease-out both;
+}
+
+@keyframes intro-shake-kf {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+
+.intro-shake {
+  animation: intro-fade-in 0.12s linear both, intro-shake-kf 0.5s steps(8) 2;
+}
+
+@keyframes intro-flash-kf {
+  0% { filter: brightness(3); }
+  100% { filter: brightness(1); }
+}
+
+.intro-flash {
+  animation: intro-flash-kf 0.4s ease-out both;
+}
