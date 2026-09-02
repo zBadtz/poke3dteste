@@ -260,8 +260,11 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
         cur.moving = false;
         cur.step = 0;
         s.setPosition(map.id, cur.toX, cur.toY, cur.dir);
-        const warp = map.warps.find((w) => w.x === cur.toX && w.y === cur.toY);
+        const warp = map.warps.find(
+          (w) => w.kind !== "door" && w.x === cur.toX && w.y === cur.toY,
+        );
         if (warp) onWarp(warp.to, warp.tx, warp.ty, warp.facing ?? cur.dir);
+
       }
     }
 
