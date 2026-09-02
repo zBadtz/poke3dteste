@@ -8,6 +8,7 @@ import { STARTERS, SPECIES, type StarterKey } from "./data";
 
 const TILE = 16;
 const DIR_ROW: Record<Dir, number> = { down: 0, up: 3, left: 6, right: 9 };
+const DIR_4: Record<Dir, number> = { down: 0, up: 1, left: 2, right: 3 };
 const STEP_TIME = 0.18;
 
 const keys: Record<string, boolean> = {};
@@ -260,7 +261,9 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
     }
 
     // câmera segue o jogador, presa aos limites do mapa
-    const zoom = Math.max(2, Math.floor(Math.min(size.width / 260, size.height / 190)));
+    const zoom = map.outdoor
+      ? Math.max(2, Math.floor(Math.min(size.width / 260, size.height / 190)))
+      : Math.max(2, Math.floor(Math.min(size.width / (map.wpx + 8), size.height / (map.hpx + 8))));
     camera.zoom = zoom;
     const halfW = size.width / (2 * zoom);
     const halfH = size.height / (2 * zoom);
@@ -287,7 +290,8 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
         <Sprite
           key={n.id}
           url={n.sheet}
-          frame={DIR_ROW[n.facing]}
+          frames={n.frames ?? 12}
+          frame={n.frames === 4 ? DIR_4[n.facing] : DIR_ROW[n.facing]}
           x={n.x * TILE + TILE / 2}
           y={n.y * TILE + TILE / 2 - 4}
         />

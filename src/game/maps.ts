@@ -7,6 +7,8 @@ export type NPC = {
   sheet: string;
   facing: Dir;
   lines: string[];
+  /** número de quadros na folha de sprite (12 = animado, 4 = estático) */
+  frames?: number;
 };
 export type Sign = { x: number; y: number; lines: string[] };
 
@@ -89,16 +91,17 @@ export const MAPS: Record<string, GameMap> = {
     rows: 10,
     outdoor: false,
     solid: grid(13, 10, [
-      [0, 0, 12, 2],
-      [0, 0, 0, 9],
-      [12, 0, 12, 9],
-      [0, 9, 12, 9],
-      [3, 4, 8, 6], // mesa/tapete central (mesa)
-      [10, 3, 11, 8],
+      [0, 0, 12, 2], // parede/bancadas do fundo
+      [0, 0, 0, 9], // borda esquerda
+      [0, 9, 12, 9], // borda inferior
+      [11, 0, 12, 3], // escada
+      [12, 4, 12, 8], // parede direita
+      [5, 4, 8, 5], // mesa e cadeiras
+      [1, 6, 1, 7], // vaso esquerdo
     ]),
     warps: [
       { x: 4, y: 8, to: "pallet", tx: 7, ty: 8, facing: "down" },
-      { x: 11, y: 3, to: "house2f", tx: 8, ty: 3, facing: "down" },
+      { x: 11, y: 4, to: "house2f", tx: 8, ty: 4, facing: "down" },
     ],
     npcs: [
       {
@@ -106,6 +109,7 @@ export const MAPS: Record<string, GameMap> = {
         x: 2,
         y: 4,
         sheet: "/game/npc_mom.png",
+        frames: 4,
         facing: "right",
         lines: [
           "Todos os garotos deixam a cidade um dia. É o que dizem.",
@@ -113,7 +117,7 @@ export const MAPS: Record<string, GameMap> = {
         ],
       },
     ],
-    signs: [{ x: 8, y: 3, lines: ["Está passando um programa sobre treinadores na TV."] }],
+    signs: [{ x: 6, y: 2, lines: ["Está passando um programa sobre treinadores na TV."] }],
   },
   house2f: {
     id: "house2f",
@@ -124,18 +128,17 @@ export const MAPS: Record<string, GameMap> = {
     rows: 9,
     outdoor: false,
     solid: grid(11, 9, [
-      [0, 0, 10, 1],
-      [0, 0, 0, 8],
-      [10, 0, 10, 8],
-      [0, 8, 10, 8],
-      [1, 2, 2, 4], // cama
-      [4, 2, 6, 2], // mesa/computador
-      [8, 2, 9, 3], // escada (parte alta)
+      [0, 0, 10, 2], // parede, PC, estante e escada
+      [0, 0, 0, 8], // borda esquerda
+      [0, 8, 10, 8], // borda inferior
+      [10, 2, 10, 3], // pôster/parede direita
+      [1, 5, 2, 6], // cama
+      [6, 4, 6, 6], // televisão e videogame
     ]),
-    warps: [{ x: 8, y: 4, to: "house1f", tx: 11, ty: 4, facing: "down" }],
+    warps: [{ x: 8, y: 3, to: "house1f", tx: 11, ty: 4, facing: "down" }],
     npcs: [],
     signs: [
-      { x: 5, y: 3, lines: ["É o seu PC. Está cheio de itens... e de nada em especial."] },
+      { x: 6, y: 4, lines: ["O seu videogame. Talvez depois da aventura..."] },
       { x: 2, y: 5, lines: ["A sua cama. Ainda está quentinha."] },
     ],
   },
@@ -148,15 +151,16 @@ export const MAPS: Record<string, GameMap> = {
     rows: 11,
     outdoor: false,
     solid: grid(15, 11, [
-      [0, 0, 14, 2],
-      [0, 0, 0, 10],
-      [14, 0, 14, 10],
-      [0, 10, 14, 10],
-      [1, 7, 5, 9],
-      [9, 7, 13, 9],
-      [9, 4, 11, 5], // mesa das poké bolas
-      [1, 3, 2, 4],
+      [0, 0, 14, 2], // bancadas do fundo
+      [0, 0, 0, 10], // borda esquerda
+      [14, 0, 14, 10], // borda direita
+      [0, 10, 14, 10], // borda inferior
+      [1, 3, 4, 5], // máquina grande
+      [1, 7, 6, 9], // estantes esquerdas
+      [9, 7, 14, 9], // estantes direitas
+      [9, 4, 12, 5], // mesa das poké bolas
     ]),
+
     warps: [{ x: 7, y: 9, to: "pallet", tx: 16, ty: 14, facing: "down" }],
     npcs: [],
     signs: [],
