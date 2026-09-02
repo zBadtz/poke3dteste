@@ -8,6 +8,7 @@ import { STARTERS, SPECIES, type StarterKey } from "./data";
 
 const TILE = 16;
 const DIR_ROW: Record<Dir, number> = { down: 0, up: 3, left: 6, right: 9 };
+const DIR_4: Record<Dir, number> = { down: 0, up: 1, left: 2, right: 3 };
 const STEP_TIME = 0.18;
 
 const keys: Record<string, boolean> = {};
