@@ -1,8 +1,15 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
-import { Suspense, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as RPointerEvent,
+} from "react";
 import * as THREE from "three";
-import { MAPS, isSolid, type Dir, type GameMap } from "./maps";
+import { MAPS, isSolid, inGrass, type Dir, type GameMap, type Prop } from "./maps";
 import { useGame } from "./store";
 import { STARTERS, SPECIES, type StarterKey } from "./data";
 
@@ -10,6 +17,9 @@ const TILE = 16;
 const DIR_ROW: Record<Dir, number> = { down: 0, up: 3, left: 6, right: 9 };
 const DIR_4: Record<Dir, number> = { down: 0, up: 1, left: 2, right: 3 };
 const STEP_TIME = 0.18;
+/** inclinação da câmera: 0 = de lado, 90 = de cima */
+const PITCH = THREE.MathUtils.degToRad(54);
+const FOV = 26;
 
 const keys: Record<string, boolean> = {};
 if (typeof window !== "undefined") {
@@ -29,24 +39,96 @@ function pixelate(t: THREE.Texture) {
   return t;
 }
 
-function Sprite({
+/** Recria a textura do chão apagando tudo que virou objeto em pé. */
+function useGroundTexture(map: GameMap, base: THREE.Texture) {
+  return useMemo(() => {
+    const img = base.image as HTMLImageElement | HTMLCanvasElement | undefined;
+    if (!img) return base;
+    const c = document.createElement("canvas");
+    c.width = map.wpx;
+    c.height = map.hpx;
+    const ctx = c.getContext("2d")!;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img as CanvasImageSource, 0, 0, map.wpx, map.hpx);
+    const data = ctx.getImageData(0, 0, map.wpx, map.hpx).data;
+    const at = (x: number, y: number) => {
+      const cx = THREE.MathUtils.clamp(Math.floor(x), 0, map.wpx - 1);
+      const cy = THREE.MathUtils.clamp(Math.floor(y), 0, map.hpx - 1);
+      const i = (cy * map.wpx + cx) * 4;
+      return `rgb(${data[i]},${data[i + 1]},${data[i + 2]})`;
+    };
+    for (const p of map.props) {
+      const x0 = p.x * TILE;
+      const y0 = p.y * TILE;
+      const w = p.w * TILE;
+      const h = p.h * TILE;
+      // amostra o chão logo abaixo (ou acima, na borda) do objeto
+      const sampleY = y0 + h + 6 < map.hpx ? y0 + h + 6 : y0 - 6;
+      ctx.fillStyle = at(x0 + w / 2, sampleY);
+      ctx.fillRect(x0, y0, w, h);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    pixelate(tex);
+    return tex;
+  }, [map, base]);
+}
+
+function Ground({ map, tex }: { map: GameMap; tex: THREE.Texture }) {
+  return (
+    <mesh rotation-x={-Math.PI / 2} position={[map.wpx / 2, 0, map.hpx / 2]} receiveShadow>
+      <planeGeometry args={[map.wpx, map.hpx]} />
+      <meshBasicMaterial map={tex} />
+    </mesh>
+  );
+}
+
+/** Um recorte do mapa que fica de pé no mundo. */
+function PropMesh({ map, p, base }: { map: GameMap; p: Prop; base: THREE.Texture }) {
+  const tex = useMemo(() => {
+    const t = base.clone();
+    pixelate(t);
+    t.repeat.set((p.w * TILE) / map.wpx, (p.h * TILE) / map.hpx);
+    t.offset.set((p.x * TILE) / map.wpx, 1 - ((p.y + p.h) * TILE) / map.hpx);
+    t.needsUpdate = true;
+    return t;
+  }, [base, map, p]);
+
+  const w = p.w * TILE;
+  const h = p.h * TILE;
+  return (
+    <group position={[p.x * TILE + w / 2, 0, (p.y + p.h) * TILE]}>
+      {/* sombra projetada no chão atrás do objeto */}
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.2, -h / 3]}>
+        <planeGeometry args={[w, (h * 2) / 3]} />
+        <meshBasicMaterial color="#000" transparent opacity={0.14} />
+      </mesh>
+      <mesh position={[0, h / 2, 0]}>
+        <planeGeometry args={[w, h]} />
+        <meshBasicMaterial map={tex} alphaTest={0.35} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Personagem em pé (billboard) com sombra elíptica. */
+function Character({
   url,
   frame,
-  x,
-  y,
   frames = 12,
+  x,
+  z,
   w = 16,
   h = 24,
-  shadow = true,
+  bob = 0,
 }: {
   url: string;
   frame: number;
-  x: number;
-  y: number;
   frames?: number;
+  x: number;
+  z: number;
   w?: number;
   h?: number;
-  shadow?: boolean;
+  bob?: number;
 }) {
   const base = useTexture(url, (t) => pixelate(t as THREE.Texture));
   const tex = useMemo(() => {
@@ -62,49 +144,35 @@ function Sprite({
     tex.needsUpdate = true;
   }, [frame, frames, tex]);
 
-  const order = Math.round(y * 10) + 1000;
-
   return (
-    <group position={[x, -y, 0]}>
-      {shadow && (
-        <mesh position={[0, -h / 2 + 1.5, 0]} renderOrder={order - 1}>
-          <circleGeometry args={[6, 16]} />
-          <meshBasicMaterial color="#000" transparent opacity={0.22} depthTest={false} />
-        </mesh>
-      )}
-      <mesh renderOrder={order}>
+    <group position={[x, 0, z]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.3, 1]}>
+        <circleGeometry args={[6, 18]} />
+        <meshBasicMaterial color="#000" transparent opacity={0.25} />
+      </mesh>
+      <mesh position={[0, h / 2 + bob, 0]}>
         <planeGeometry args={[w, h]} />
-        <meshBasicMaterial map={tex} transparent alphaTest={0.5} depthTest={false} />
+        <meshBasicMaterial map={tex} alphaTest={0.5} />
       </mesh>
     </group>
   );
 }
 
-function MapPlane({ map }: { map: GameMap }) {
-  const tex = useTexture(map.image, (t) => pixelate(t as THREE.Texture));
-  return (
-    <mesh position={[map.wpx / 2, -map.hpx / 2, 0]} renderOrder={0}>
-      <planeGeometry args={[map.wpx, map.hpx]} />
-      <meshBasicMaterial map={tex as THREE.Texture} depthTest={false} />
-    </mesh>
-  );
-}
-
-function PokeBall({ x, y, taken }: { x: number; y: number; taken: boolean }) {
+function PokeBall({ x, z, taken }: { x: number; z: number; taken: boolean }) {
   if (taken) return null;
   return (
-    <group position={[x, -y, 0]} renderOrder={2000}>
-      <mesh renderOrder={2000}>
+    <group position={[x, 0, z]}>
+      <mesh position={[0, 5, 0]}>
         <circleGeometry args={[5, 20]} />
-        <meshBasicMaterial color="#e8e8e8" depthTest={false} />
+        <meshBasicMaterial color="#e8e8e8" />
       </mesh>
-      <mesh position={[0, 1.4, 0]} renderOrder={2001}>
+      <mesh position={[0, 6.4, 0.1]}>
         <circleGeometry args={[5, 20, 0, Math.PI]} />
-        <meshBasicMaterial color="#e04b3a" depthTest={false} />
+        <meshBasicMaterial color="#e04b3a" />
       </mesh>
-      <mesh position={[0, 0, 0]} renderOrder={2002}>
+      <mesh position={[0, 5, 0.2]}>
         <planeGeometry args={[10, 1.5]} />
-        <meshBasicMaterial color="#1a1a1a" depthTest={false} />
+        <meshBasicMaterial color="#1a1a1a" />
       </mesh>
     </group>
   );
@@ -112,7 +180,7 @@ function PokeBall({ x, y, taken }: { x: number; y: number; taken: boolean }) {
 
 type Player = {
   px: number;
-  py: number;
+  pz: number;
   dir: Dir;
   moving: boolean;
   t: number;
@@ -124,13 +192,26 @@ type Player = {
   step: number;
 };
 
+function MapContent({ map }: { map: GameMap }) {
+  const base = useTexture(map.image, (t) => pixelate(t as THREE.Texture));
+  const ground = useGroundTexture(map, base as THREE.Texture);
+  return (
+    <>
+      <Ground map={map} tex={ground} />
+      {map.props.map((p, i) => (
+        <PropMesh key={`${p.x}-${p.y}-${i}`} map={map} p={p} base={base as THREE.Texture} />
+      ))}
+    </>
+  );
+}
+
 function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing: Dir) => void }) {
   const { camera, size } = useThree();
   const state = useGame();
   const map = MAPS[state.mapId] ?? MAPS["pallet"]!;
   const p = useRef<Player>({
     px: state.x * TILE + TILE / 2,
-    py: state.y * TILE + TILE / 2,
+    pz: state.y * TILE + TILE / 2,
     dir: state.facing,
     moving: false,
     t: 0,
@@ -143,12 +224,13 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
   });
   const [, force] = useState(0);
   const interactRef = useRef(false);
+  const stepsRef = useRef(0);
 
   useEffect(() => {
     p.current = {
       ...p.current,
       px: state.x * TILE + TILE / 2,
-      py: state.y * TILE + TILE / 2,
+      pz: state.y * TILE + TILE / 2,
       dir: state.facing,
       moving: false,
       t: 0,
@@ -159,7 +241,6 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
     };
   }, [state.mapId, state.x, state.y]);
 
-  // ação (Z / Enter) para interagir
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (["z", "Z", "Enter", " "].includes(e.key)) interactRef.current = true;
@@ -178,13 +259,11 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
     const npc = map.npcs.find((n) => n.x === fx && n.y === fy);
     if (npc) return s.say(npc.lines);
 
-    // porta: entra apertando A de frente para ela
     const door = map.warps.find((w) => w.kind === "door" && w.x === fx && w.y === fy);
     if (door) return onWarp(door.to, door.tx, door.ty, door.facing ?? "down");
 
     const sign = map.signs.find((n) => n.x === fx && n.y === fy);
     if (sign) return s.say(sign.lines);
-
 
     if (map.id === "lab" && fy === 5 && fx >= 9 && fx <= 11 && d === "up") {
       const key = STARTERS[fx - 9] as StarterKey;
@@ -192,7 +271,7 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
       const sp = SPECIES[key]!;
       return s.say(
         [
-          `Então você quer ${sp.name}?`,
+          `PROF. CARVALHO: Então você quer ${sp.name}?`,
           sp.dex,
           `${s.playerName} recebeu ${sp.name}!`,
           `${s.rivalName}: Eu fico com este aqui então! Vamos batalhar agora mesmo!`,
@@ -204,10 +283,17 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
       );
     }
 
-    if (map.id === "lab" && fx === 7 && fy === 4) {
+    // Prof. Carvalho e rival no laboratório
+    if (map.id === "lab" && fx === 7 && fy === 3) {
       return s.say([
         "PROF. CARVALHO: Aí está você!",
         "Escolha uma POKé BOLA sobre a mesa. Um POKéMON será seu para sempre!",
+      ]);
+    }
+    if (map.id === "lab" && fx === 12 && fy === 3) {
+      return s.say([
+        `${s.rivalName}: Vovô, já cansei de esperar!`,
+        `${s.rivalName}: Vai logo, escolhe o seu. Eu pego o que for melhor!`,
       ]);
     }
   }
@@ -250,7 +336,7 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
       cur.t += dt;
       const k = Math.min(1, cur.t / STEP_TIME);
       cur.px = (cur.fromX + (cur.toX - cur.fromX) * k) * TILE + TILE / 2;
-      cur.py = (cur.fromY + (cur.toY - cur.fromY) * k) * TILE + TILE / 2;
+      cur.pz = (cur.fromY + (cur.toY - cur.fromY) * k) * TILE + TILE / 2;
       cur.animT += dt;
       if (cur.animT > STEP_TIME / 2) {
         cur.animT = 0;
@@ -264,27 +350,39 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
           (w) => w.kind !== "door" && w.x === cur.toX && w.y === cur.toY,
         );
         if (warp) onWarp(warp.to, warp.tx, warp.ty, warp.facing ?? cur.dir);
-
+        else if (inGrass(map, cur.toX, cur.toY)) {
+          stepsRef.current++;
+          if (stepsRef.current > 3 && Math.random() < 0.16) {
+            stepsRef.current = 0;
+            s.startWild(map.id);
+          }
+        }
       }
     }
 
-    // câmera segue o jogador, presa aos limites do mapa
-    const zoom = map.outdoor
-      ? Math.max(2, Math.floor(Math.min(size.width / 260, size.height / 190)))
-      : Math.max(2, Math.floor(Math.min(size.width / (map.wpx + 8), size.height / (map.hpx + 8))));
-    camera.zoom = zoom;
-    const halfW = size.width / (2 * zoom);
-    const halfH = size.height / (2 * zoom);
-    const cx =
-      map.wpx <= halfW * 2
-        ? map.wpx / 2
-        : THREE.MathUtils.clamp(cur.px, halfW, map.wpx - halfW);
-    const cy =
-      map.hpx <= halfH * 2
-        ? -map.hpx / 2
-        : -THREE.MathUtils.clamp(cur.py, halfH, map.hpx - halfH);
-    camera.position.lerp(new THREE.Vector3(cx, cy, 100), 1 - Math.exp(-14 * dt));
-    camera.updateProjectionMatrix();
+    // câmera inclinada seguindo o jogador
+    const viewH = map.outdoor ? 190 : Math.max(map.hpx * 0.95, 130);
+    const dist = viewH / 2 / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+    const aspect = size.width / size.height;
+    const viewW = viewH * aspect;
+    const halfW = viewW / 2;
+    const halfD = (viewH * Math.cos(PITCH)) / 2 + 40;
+
+    const tx =
+      map.wpx <= viewW ? map.wpx / 2 : THREE.MathUtils.clamp(cur.px, halfW, map.wpx - halfW);
+    const tz =
+      map.hpx <= halfD * 2
+        ? map.hpx / 2
+        : THREE.MathUtils.clamp(cur.pz, halfD, map.hpx - halfD);
+
+    const target = new THREE.Vector3(tx, 8, tz);
+    const wanted = new THREE.Vector3(
+      target.x,
+      target.y + Math.sin(PITCH) * dist,
+      target.z + Math.cos(PITCH) * dist,
+    );
+    camera.position.lerp(wanted, 1 - Math.exp(-12 * dt));
+    camera.lookAt(target.x, target.y, target.z);
     force((n) => (n + 1) % 1000000);
   });
 
@@ -293,44 +391,61 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
 
   return (
     <>
-      <MapPlane map={map} />
+      <MapContent map={map} />
       {map.npcs.map((n) => (
-        <Sprite
+        <Character
           key={n.id}
           url={n.sheet}
           frames={n.frames ?? 12}
           frame={n.frames === 4 ? DIR_4[n.facing] : DIR_ROW[n.facing]}
           x={n.x * TILE + TILE / 2}
-          y={n.y * TILE + TILE / 2 - 4}
+          z={n.y * TILE + TILE / 2}
         />
       ))}
       {map.id === "lab" && (
         <>
-          <Sprite
+          <Character
             url="/game/oak_ow.png"
             frames={4}
             frame={0}
             x={7 * TILE + TILE / 2}
-            y={4 * TILE + TILE / 2 - 4}
+            z={3 * TILE + TILE / 2}
           />
+          {!state.starter && (
+            <Character
+              url="/game/rival.png"
+              frames={12}
+              frame={DIR_ROW.down}
+              x={12 * TILE + TILE / 2}
+              z={3 * TILE + TILE / 2}
+            />
+          )}
           {[0, 1, 2].map((i) => (
             <PokeBall
               key={i}
               x={(9 + i) * TILE + TILE / 2}
-              y={5 * TILE + TILE / 2}
+              z={5 * TILE + TILE / 2}
               taken={!!state.starter}
             />
           ))}
         </>
       )}
-      <Sprite url="/game/player.png" frame={frame} x={cur.px} y={cur.py - 4} />
+      <Character
+        url="/game/player.png"
+        frame={frame}
+        x={cur.px}
+        z={cur.pz}
+        bob={cur.moving && cur.step === 1 ? 0.6 : 0}
+      />
     </>
   );
 }
 
 export function Overworld() {
   const setPosition = useGame((s) => s.setPosition);
+  const mapId = useGame((s) => s.mapId);
   const [fade, setFade] = useState(false);
+  const outdoor = MAPS[mapId]?.outdoor ?? true;
 
   function onWarp(to: string, tx: number, ty: number, facing: Dir) {
     setFade(true);
@@ -341,13 +456,14 @@ export function Overworld() {
   }
 
   return (
-    <div className="relative h-full w-full bg-black">
+    <div className="relative h-full w-full">
       <Canvas
-        orthographic
         dpr={1}
         gl={{ antialias: false }}
-        camera={{ position: [0, 0, 100], zoom: 3, near: -1000, far: 1000 }}
+        camera={{ fov: FOV, position: [0, 200, 200], near: 1, far: 4000 }}
       >
+        <color attach="background" args={[outdoor ? "#7fc8e8" : "#101018"]} />
+        <fog attach="fog" args={[outdoor ? "#7fc8e8" : "#101018", 600, 1200]} />
         <Suspense fallback={null}>
           <Scene onWarp={onWarp} />
         </Suspense>
