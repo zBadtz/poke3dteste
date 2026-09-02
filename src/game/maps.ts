@@ -245,7 +245,32 @@ export const MAPS: Record<string, GameMap> = {
     ]),
     props: [{ x: 0, y: 0, w: 15, h: 3 }],
     warps: [{ x: 7, y: 9, to: "pallet", tx: 16, ty: 14, facing: "down", kind: "step" }],
-    npcs: [],
+    npcs: [
+      {
+        id: "carvalho",
+        x: 7,
+        y: 3,
+        sheet: "/game/oak_ow.png",
+        frames: 4,
+        facing: "down",
+        lines: [
+          "PROF. CARVALHO: Aí está você!",
+          "PROF. CARVALHO: Escolha uma POKé BOLA sobre a mesa.",
+          "PROF. CARVALHO: Esse POKéMON será seu para sempre!",
+        ],
+      },
+      {
+        id: "rival",
+        x: 12,
+        y: 3,
+        sheet: "/game/rival.png",
+        facing: "down",
+        lines: [
+          "Vovô, já cansei de esperar!",
+          "Vai logo, escolhe o seu. Eu fico com o que for melhor!",
+        ],
+      },
+    ],
     signs: [],
   },
   route1: {

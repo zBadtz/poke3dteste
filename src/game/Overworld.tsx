@@ -283,19 +283,6 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
       );
     }
 
-    // Prof. Carvalho e rival no laboratório
-    if (map.id === "lab" && fx === 7 && fy === 3) {
-      return s.say([
-        "PROF. CARVALHO: Aí está você!",
-        "Escolha uma POKé BOLA sobre a mesa. Um POKéMON será seu para sempre!",
-      ]);
-    }
-    if (map.id === "lab" && fx === 12 && fy === 3) {
-      return s.say([
-        `${s.rivalName}: Vovô, já cansei de esperar!`,
-        `${s.rivalName}: Vai logo, escolhe o seu. Eu pego o que for melhor!`,
-      ]);
-    }
   }
 
   useFrame((_, rawDelta) => {
@@ -404,22 +391,6 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
       ))}
       {map.id === "lab" && (
         <>
-          <Character
-            url="/game/oak_ow.png"
-            frames={4}
-            frame={0}
-            x={7 * TILE + TILE / 2}
-            z={3 * TILE + TILE / 2}
-          />
-          {!state.starter && (
-            <Character
-              url="/game/rival.png"
-              frames={12}
-              frame={DIR_ROW.down}
-              x={12 * TILE + TILE / 2}
-              z={3 * TILE + TILE / 2}
-            />
-          )}
           {[0, 1, 2].map((i) => (
             <PokeBall
               key={i}
