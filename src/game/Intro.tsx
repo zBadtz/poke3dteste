@@ -21,7 +21,7 @@ export function Intro() {
 
   const isNaming = step >= lines.length;
   const namingRival = step === lines.length + 1;
-  const text = isNaming ? "" : lines[step];
+  const text = isNaming ? "" : (lines[step] ?? "");
   const { shown, done, skip } = useTypewriter(text, 24);
 
   useEffect(() => {
