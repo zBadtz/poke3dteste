@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { SaveRepository, useGame } from "./store";
+import { Attract } from "./Attract";
 
 type Stage = "logo" | "press" | "menu";
 
 export function Title({ onNewGame }: { onNewGame: () => void }) {
+  const [attract, setAttract] = useState(true);
   const [stage, setStage] = useState<Stage>("logo");
   const [index, setIndex] = useState(0);
   const [fade, setFade] = useState(false);
@@ -17,6 +19,7 @@ export function Title({ onNewGame }: { onNewGame: () => void }) {
   }, []);
 
   useEffect(() => {
+    if (attract) return;
     const onKey = (e: KeyboardEvent) => {
       const k = e.key;
       if (stage === "logo") {
@@ -43,6 +46,8 @@ export function Title({ onNewGame }: { onNewGame: () => void }) {
       if (continueGame()) return;
     }
   }
+
+  if (attract) return <Attract onDone={() => setAttract(false)} />;
 
   return (
     <div
@@ -93,6 +98,13 @@ export function Title({ onNewGame }: { onNewGame: () => void }) {
           </div>
         )}
       </div>
+
+      <img
+        src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-iii/firered-leafgreen/6.png"
+        alt="Charizard"
+        className="pointer-events-none absolute bottom-6 right-2 w-[38%] max-w-[300px] opacity-95 drop-shadow-[0_6px_10px_rgba(0,0,0,.5)]"
+        style={{ imageRendering: "pixelated" }}
+      />
 
       <div className="pixel absolute bottom-2 w-full text-center text-[6px] text-white/70">
         Fan game sem fins lucrativos · Pokémon © Nintendo / Game Freak
