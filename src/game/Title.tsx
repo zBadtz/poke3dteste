@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { SaveRepository, useGame } from "./store";
 import { Attract } from "./Attract";
+import logo from "../assets/logo.webp.asset.json";
 
 type Stage = "logo" | "press" | "menu";
 
@@ -81,7 +82,7 @@ export function Title({ onNewGame }: { onNewGame: () => void }) {
         )}
 
         {stage === "menu" && (
-          <div className="gb-box w-56 p-3">
+          <div className="w-60 rounded-lg border-[3px] border-[#0b3a6b] bg-gradient-to-b from-[#f4fbff] to-[#cfe6ff] p-3 shadow-[0_6px_0_rgba(0,0,0,.45)]">
             {options.map((o, i) => (
               <button
                 key={o}
@@ -90,7 +91,9 @@ export function Title({ onNewGame }: { onNewGame: () => void }) {
                   e.stopPropagation();
                   select(i);
                 }}
-                className="pixel flex w-full items-center gap-2 py-1 text-left text-[9px] text-black"
+                className={`pixel flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[9px] text-[#12305a] ${
+                  i === index ? "bg-[#9ec9ff]" : ""
+                }`}
               >
                 <span className={i === index ? "opacity-100" : "opacity-0"}>▶</span>
                 {o}
