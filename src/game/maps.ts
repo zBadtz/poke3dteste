@@ -109,6 +109,7 @@ export const MAPS: Record<string, GameMap> = {
         x: 2,
         y: 4,
         sheet: "/game/npc_mom.png",
+        frames: 4,
         facing: "right",
         lines: [
           "Todos os garotos deixam a cidade um dia. É o que dizem.",
