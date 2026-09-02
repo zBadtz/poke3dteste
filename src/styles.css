@@ -210,3 +210,26 @@ canvas {
     radial-gradient(ellipse at 85% 100%, rgba(255, 200, 60, 0.8), transparent 60%);
   animation: flicker 2.4s ease-in-out infinite;
 }
+
+@keyframes shine {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  60%, 100% { transform: translateX(160%) skewX(-18deg); }
+}
+
+.title-shine {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  width: 45%;
+  animation: shine 3.4s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes battle-in {
+  from { opacity: 0; transform: translateX(var(--from, 120px)) scale(0.9); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes battle-wipe {
+  0% { clip-path: circle(0% at 50% 50%); }
+  100% { clip-path: circle(85% at 50% 50%); }
+}
+
