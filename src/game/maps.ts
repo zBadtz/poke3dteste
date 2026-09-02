@@ -164,4 +164,4 @@ export const MAPS: Record<string, GameMap> = {
 };
 
 export const isSolid = (map: GameMap, x: number, y: number) =>
-  x < 0 || y < 0 || x >= map.cols || y >= map.rows || map.solid[y][x];
+  x < 0 || y < 0 || x >= map.cols || y >= map.rows || !!map.solid[y]?.[x];
