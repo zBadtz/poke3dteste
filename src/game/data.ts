@@ -36,7 +36,11 @@ export const MOVES: Record<string, Move> = {
   vinewhip: { name: "CHIC. VINHA", type: "grass", power: 45, accuracy: 100, pp: 25, category: "special" },
   bubble: { name: "BOLHA", type: "water", power: 40, accuracy: 100, pp: 30, category: "special" },
   leer: { name: "OLHAR FEIO", type: "normal", power: 0, accuracy: 100, pp: 30, category: "status", effect: "lower-defense" },
+  gust: { name: "RAJADA", type: "flying", power: 40, accuracy: 100, pp: 35, category: "special" },
+  quickattack: { name: "ATAQUE RÁPIDO", type: "normal", power: 40, accuracy: 100, pp: 30, category: "physical" },
+  sandattack: { name: "ATQ. DE AREIA", type: "ground", power: 0, accuracy: 100, pp: 15, category: "status", effect: "lower-attack" },
 };
+
 
 export type Species = {
   id: number;
@@ -67,6 +71,26 @@ export const SPECIES: Record<string, Species> = {
     moves: ["tackle", "tailwhip", "bubble", "leer"],
     dex: "Após o nascimento, suas costas incham e endurecem em um casco.",
   },
+  pidgey: {
+    id: 16, name: "PIDGEY", types: ["normal", "flying"],
+    base: { hp: 40, atk: 45, def: 40, spa: 35, spd: 35, spe: 56 },
+    moves: ["tackle", "gust", "sandattack"],
+    dex: "Um POKéMON dócil que evita conflitos sempre que possível.",
+  },
+  rattata: {
+    id: 19, name: "RATTATA", types: ["normal"],
+    base: { hp: 30, atk: 56, def: 35, spa: 25, spd: 35, spe: 72 },
+    moves: ["tackle", "quickattack", "tailwhip"],
+    dex: "Come de tudo. Aparece em qualquer lugar onde haja comida.",
+  },
+};
+
+/** Encontros na grama alta por mapa. */
+export const WILD: Record<string, { key: string; min: number; max: number }[]> = {
+  route1: [
+    { key: "pidgey", min: 2, max: 5 },
+    { key: "rattata", min: 2, max: 4 },
+  ],
 };
 
 export const STARTERS = ["bulbasaur", "charmander", "squirtle"] as const;
@@ -74,6 +98,7 @@ export type StarterKey = (typeof STARTERS)[number];
 
 /** Quem o rival escolhe: sempre o tipo com vantagem sobre o seu inicial. */
 export const RIVAL_PICK: Record<StarterKey, StarterKey> = {
+
   bulbasaur: "charmander",
   charmander: "squirtle",
   squirtle: "bulbasaur",
