@@ -178,8 +178,13 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
     const npc = map.npcs.find((n) => n.x === fx && n.y === fy);
     if (npc) return s.say(npc.lines);
 
+    // porta: entra apertando A de frente para ela
+    const door = map.warps.find((w) => w.kind === "door" && w.x === fx && w.y === fy);
+    if (door) return onWarp(door.to, door.tx, door.ty, door.facing ?? "down");
+
     const sign = map.signs.find((n) => n.x === fx && n.y === fy);
     if (sign) return s.say(sign.lines);
+
 
     if (map.id === "lab" && fy === 5 && fx >= 9 && fx <= 11 && d === "up") {
       const key = STARTERS[fx - 9] as StarterKey;
@@ -255,8 +260,11 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
         cur.moving = false;
         cur.step = 0;
         s.setPosition(map.id, cur.toX, cur.toY, cur.dir);
-        const warp = map.warps.find((w) => w.x === cur.toX && w.y === cur.toY);
+        const warp = map.warps.find(
+          (w) => w.kind !== "door" && w.x === cur.toX && w.y === cur.toY,
+        );
         if (warp) onWarp(warp.to, warp.tx, warp.ty, warp.facing ?? cur.dir);
+
       }
     }
 
