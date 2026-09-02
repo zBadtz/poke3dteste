@@ -142,3 +142,71 @@
     color: var(--color-foreground);
   }
 }
+
+/* ---- Game (pixel art) ---- */
+.pixel {
+  font-family: "Press Start 2P", ui-monospace, monospace;
+}
+
+.pixelated,
+canvas {
+  image-rendering: pixelated;
+}
+
+.gb-box {
+  background: #f8f8f8;
+  border: 3px solid #202020;
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 0 2px #f8f8f8,
+    inset 0 0 0 5px #5878c8,
+    0 4px 0 rgba(0, 0, 0, 0.35);
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes hit {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); opacity: 0.5; }
+  75% { transform: translateX(6px); opacity: 0.5; }
+}
+
+@keyframes logoPulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.04); filter: brightness(1.15); }
+}
+
+.title-logo {
+  animation: logoPulse 2.6s ease-in-out infinite;
+}
+
+@keyframes drift {
+  from { background-position: 0 0; }
+  to { background-position: 800px 0; }
+}
+
+.title-clouds {
+  background-image:
+    radial-gradient(closest-side, rgba(255, 255, 255, 0.5) 60%, transparent 62%),
+    radial-gradient(closest-side, rgba(255, 255, 255, 0.35) 60%, transparent 62%);
+  background-size: 220px 60px, 320px 80px;
+  background-position: 0 25%, 120px 55%;
+  background-repeat: repeat-x;
+  animation: drift 26s linear infinite;
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 0.55; transform: translateY(0) scaleY(1); }
+  50% { opacity: 0.85; transform: translateY(-6px) scaleY(1.06); }
+}
+
+.title-flames {
+  background:
+    radial-gradient(ellipse at 20% 100%, rgba(255, 170, 40, 0.9), transparent 60%),
+    radial-gradient(ellipse at 55% 100%, rgba(255, 90, 30, 0.9), transparent 65%),
+    radial-gradient(ellipse at 85% 100%, rgba(255, 200, 60, 0.8), transparent 60%);
+  animation: flicker 2.4s ease-in-out infinite;
+}
