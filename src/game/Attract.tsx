@@ -52,7 +52,7 @@ export function Attract({ onDone }: { onDone: () => void }) {
     return () => clearTimeout(t);
   }, [i, onDone]);
 
-  const shot = SHOTS[i] ?? SHOTS[SHOTS.length - 1];
+  const shot: Shot = SHOTS[i] ?? SHOTS[0]!;
 
   return (
     <div
