@@ -185,7 +185,7 @@ export function Battle() {
       />
       {/* cenário */}
       <img
-        src={isWild ? "/game/battle_grass.png" : "/game/battle_indoor.png"}
+        src={isWild ? "/game/fr/bt_grass.png" : "/game/fr/bt_indoor.png"}
         alt=""
         className="absolute inset-0 h-full w-full object-cover"
         style={{ imageRendering: "pixelated" }}
