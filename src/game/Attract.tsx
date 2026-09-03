@@ -108,13 +108,13 @@ export function Attract({ onDone }: { onDone: () => void }) {
               src="/game/fr/gengar.png"
               alt=""
               className="absolute intro-slide-l"
-              style={{ ...px, width: "27%", left: "8%", top: "34%" }}
+              style={{ ...px, width: "22%", left: "6%", top: "30%" }}
             />
             <img
               src="/game/fr/nidorino.png"
               alt=""
               className="absolute intro-slide-r"
-              style={{ ...px, width: "27%", right: "8%", top: "40%" }}
+              style={{ ...px, width: "22%", right: "6%", top: "34%" }}
             />
             <img src="/game/fr/s2_plants.png" alt="" className={L} style={px} />
           </>
@@ -127,19 +127,14 @@ export function Attract({ onDone }: { onDone: () => void }) {
               src="/game/fr/gengar.png"
               alt=""
               className="absolute intro-shake"
-              style={{ ...px, width: "34%", left: "6%", top: "26%" }}
+              style={{ ...px, width: "26%", left: "8%", top: "26%" }}
             />
-            <div
-              className="absolute overflow-hidden"
-              style={{ width: "34%", right: "6%", top: "32%", aspectRatio: "1 / 1" }}
-            >
-              <img
-                src="/game/fr/s3_nidorino.png"
-                alt=""
-                className="absolute left-0 top-0 h-full intro-frames"
-                style={{ ...px, width: "500%" }}
-              />
-            </div>
+            <img
+              src="/game/fr/nidorino.png"
+              alt=""
+              className="absolute intro-shake"
+              style={{ ...px, width: "26%", right: "8%", top: "30%" }}
+            />
             <div className="absolute inset-0 intro-clash bg-white" />
           </>
         )}
