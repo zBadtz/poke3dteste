@@ -18,7 +18,7 @@ const DIR_ROW: Record<Dir, number> = { down: 0, up: 3, left: 6, right: 9 };
 const DIR_4: Record<Dir, number> = { down: 0, up: 1, left: 2, right: 3 };
 const STEP_TIME = 0.18;
 /** inclinação da câmera: 0 = de lado, 90 = de cima */
-const PITCH = THREE.MathUtils.degToRad(54);
+const PITCH = THREE.MathUtils.degToRad(48);
 const FOV = 26;
 
 const keys: Record<string, boolean> = {};
@@ -39,37 +39,108 @@ function pixelate(t: THREE.Texture) {
   return t;
 }
 
-/** Recria a textura do chão apagando tudo que virou objeto em pé. */
-function useGroundTexture(map: GameMap, base: THREE.Texture) {
+type MapTextures = { ground: THREE.Texture; props: THREE.Texture[] };
+
+const keyOf = (r: number, g: number, b: number) =>
+  ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+
+/**
+ * Monta a textura do chão (com os objetos apagados) e uma textura recortada,
+ * com fundo transparente, para cada objeto que fica em pé.
+ */
+function useMapTextures(map: GameMap, base: THREE.Texture): MapTextures {
   return useMemo(() => {
-    const img = base.image as HTMLImageElement | HTMLCanvasElement | undefined;
-    if (!img) return base;
+    const img = base.image as CanvasImageSource | undefined;
+    if (!img) return { ground: base, props: [] };
+    const W = map.wpx;
+    const H = map.hpx;
     const c = document.createElement("canvas");
-    c.width = map.wpx;
-    c.height = map.hpx;
+    c.width = W;
+    c.height = H;
     const ctx = c.getContext("2d")!;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img as CanvasImageSource, 0, 0, map.wpx, map.hpx);
-    const data = ctx.getImageData(0, 0, map.wpx, map.hpx).data;
-    const at = (x: number, y: number) => {
-      const cx = THREE.MathUtils.clamp(Math.floor(x), 0, map.wpx - 1);
-      const cy = THREE.MathUtils.clamp(Math.floor(y), 0, map.hpx - 1);
-      const i = (cy * map.wpx + cx) * 4;
-      return `rgb(${data[i]},${data[i + 1]},${data[i + 2]})`;
-    };
-    for (const p of map.props) {
-      const x0 = p.x * TILE;
-      const y0 = p.y * TILE;
+    ctx.drawImage(img, 0, 0, W, H);
+    const src = ctx.getImageData(0, 0, W, H);
+    const d = src.data;
+
+    // marca quais tiles viraram objeto em pé
+    const isProp: boolean[] = Array(map.cols * map.rows).fill(false);
+    for (const p of map.props)
+      for (let y = p.y; y < p.y + p.h; y++)
+        for (let x = p.x; x < p.x + p.w; x++) isProp[y * map.cols + x] = true;
+
+    // paleta do chão: cores dos tiles onde dá para andar e que não são objeto
+    const counts = new Map<number, number>();
+    let total = 0;
+    for (let ty = 0; ty < map.rows; ty++) {
+      for (let tx = 0; tx < map.cols; tx++) {
+        if (isProp[ty * map.cols + tx] || isSolid(map, tx, ty)) continue;
+        for (let y = ty * TILE; y < (ty + 1) * TILE; y += 2) {
+          for (let x = tx * TILE; x < (tx + 1) * TILE; x += 2) {
+            if (x >= W || y >= H) continue;
+            const i = (y * W + x) * 4;
+            const k = keyOf(d[i]!, d[i + 1]!, d[i + 2]!);
+            counts.set(k, (counts.get(k) ?? 0) + 1);
+            total++;
+          }
+        }
+      }
+    }
+    const palette = new Set<number>();
+    for (const [k, n] of counts) if (n / Math.max(1, total) > 0.008) palette.add(k);
+    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    const fillKey = sorted[0]?.[0];
+    let fill = "#5cb85c";
+    if (fillKey !== undefined) {
+      // recupera uma cor real correspondente à chave mais comum
+      outer: for (let y = 0; y < H; y += 2)
+        for (let x = 0; x < W; x += 2) {
+          const i = (y * W + x) * 4;
+          if (keyOf(d[i]!, d[i + 1]!, d[i + 2]!) === fillKey) {
+            fill = `rgb(${d[i]},${d[i + 1]},${d[i + 2]})`;
+            break outer;
+          }
+        }
+    }
+
+    // recorta cada objeto e deixa o fundo (cores do chão) transparente
+    const props = map.props.map((p) => {
       const w = p.w * TILE;
       const h = p.h * TILE;
-      // amostra o chão logo abaixo (ou acima, na borda) do objeto
-      const sampleY = y0 + h + 6 < map.hpx ? y0 + h + 6 : y0 - 6;
-      ctx.fillStyle = at(x0 + w / 2, sampleY);
-      ctx.fillRect(x0, y0, w, h);
-    }
-    const tex = new THREE.CanvasTexture(c);
-    pixelate(tex);
-    return tex;
+      const pc = document.createElement("canvas");
+      pc.width = w;
+      pc.height = h;
+      const pctx = pc.getContext("2d")!;
+      const out = pctx.createImageData(w, h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const sx = p.x * TILE + x;
+          const sy = p.y * TILE + y;
+          const si = (sy * W + sx) * 4;
+          const di = (y * w + x) * 4;
+          const r = d[si]!;
+          const g = d[si + 1]!;
+          const b = d[si + 2]!;
+          out.data[di] = r;
+          out.data[di + 1] = g;
+          out.data[di + 2] = b;
+          out.data[di + 3] = map.outdoor && palette.has(keyOf(r, g, b)) ? 0 : 255;
+        }
+      }
+      pctx.putImageData(out, 0, 0);
+      const t = new THREE.CanvasTexture(pc);
+      pixelate(t);
+      return t;
+    });
+
+    // apaga do chão tudo que virou objeto
+    ctx.fillStyle = fill;
+    for (const p of map.props)
+      ctx.fillRect(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE);
+
+    const ground = new THREE.CanvasTexture(c);
+    pixelate(ground);
+    return { ground, props };
   }, [map, base]);
 }
 
@@ -83,28 +154,18 @@ function Ground({ map, tex }: { map: GameMap; tex: THREE.Texture }) {
 }
 
 /** Um recorte do mapa que fica de pé no mundo. */
-function PropMesh({ map, p, base }: { map: GameMap; p: Prop; base: THREE.Texture }) {
-  const tex = useMemo(() => {
-    const t = base.clone();
-    pixelate(t);
-    t.repeat.set((p.w * TILE) / map.wpx, (p.h * TILE) / map.hpx);
-    t.offset.set((p.x * TILE) / map.wpx, 1 - ((p.y + p.h) * TILE) / map.hpx);
-    t.needsUpdate = true;
-    return t;
-  }, [base, map, p]);
-
+function PropMesh({ p, tex }: { p: Prop; tex: THREE.Texture }) {
   const w = p.w * TILE;
   const h = p.h * TILE;
   return (
-    <group position={[p.x * TILE + w / 2, 0, (p.y + p.h) * TILE]}>
-      {/* sombra projetada no chão atrás do objeto */}
+    <group position={[p.x * TILE + w / 2, 0, (p.y + p.h) * TILE - 1]}>
       <mesh rotation-x={-Math.PI / 2} position={[0, 0.2, -h / 3]}>
         <planeGeometry args={[w, (h * 2) / 3]} />
-        <meshBasicMaterial color="#000" transparent opacity={0.14} />
+        <meshBasicMaterial color="#000" transparent opacity={0.12} />
       </mesh>
       <mesh position={[0, h / 2, 0]}>
         <planeGeometry args={[w, h]} />
-        <meshBasicMaterial map={tex} alphaTest={0.35} />
+        <meshBasicMaterial map={tex} transparent alphaTest={0.5} />
       </mesh>
     </group>
   );
@@ -159,22 +220,43 @@ function Character({
 }
 
 function PokeBall({ x, z, taken }: { x: number; z: number; taken: boolean }) {
+  const tex = useTexture("/game/pokeball.png", (t) => pixelate(t as THREE.Texture));
   if (taken) return null;
   return (
     <group position={[x, 0, z]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.3, 1]}>
+        <circleGeometry args={[4, 16]} />
+        <meshBasicMaterial color="#000" transparent opacity={0.22} />
+      </mesh>
       <mesh position={[0, 5, 0]}>
-        <circleGeometry args={[5, 20]} />
-        <meshBasicMaterial color="#e8e8e8" />
-      </mesh>
-      <mesh position={[0, 6.4, 0.1]}>
-        <circleGeometry args={[5, 20, 0, Math.PI]} />
-        <meshBasicMaterial color="#e04b3a" />
-      </mesh>
-      <mesh position={[0, 5, 0.2]}>
-        <planeGeometry args={[10, 1.5]} />
-        <meshBasicMaterial color="#1a1a1a" />
+        <planeGeometry args={[10, 10]} />
+        <meshBasicMaterial map={tex as THREE.Texture} transparent alphaTest={0.4} />
       </mesh>
     </group>
+  );
+}
+
+/** Tufos de grama alta desenhados sobre as áreas de encontro. */
+function GrassPatches({ map }: { map: GameMap }) {
+  const areas = (map as GameMap & { grass?: [number, number, number, number][] }).grass;
+  const tufts = useMemo(() => {
+    if (!areas) return [];
+    const out: [number, number][] = [];
+    for (const [x0, y0, x1, y1] of areas)
+      for (let y = y0; y <= y1; y++)
+        for (let x = x0; x <= x1; x++) out.push([x * TILE + TILE / 2, y * TILE + TILE]);
+    return out;
+  }, [areas]);
+  if (!tufts.length) return null;
+  return (
+    <>
+      {tufts.map(([x, z], i) => (
+        <mesh key={i} position={[x, 4, z - 2]}>
+          <planeGeometry args={[TILE, 8]} />
+          <meshBasicMaterial color={i % 2 ? "#3f9c46" : "#4bb055"} transparent opacity={0.9} />
+        </mesh>
+      ))}
+    </>
   );
 }
 
@@ -194,13 +276,15 @@ type Player = {
 
 function MapContent({ map }: { map: GameMap }) {
   const base = useTexture(map.image, (t) => pixelate(t as THREE.Texture));
-  const ground = useGroundTexture(map, base as THREE.Texture);
+  const { ground, props } = useMapTextures(map, base as THREE.Texture);
   return (
     <>
       <Ground map={map} tex={ground} />
-      {map.props.map((p, i) => (
-        <PropMesh key={`${p.x}-${p.y}-${i}`} map={map} p={p} base={base as THREE.Texture} />
-      ))}
+      <GrassPatches map={map} />
+      {map.props.map((p, i) => {
+        const tex = props[i];
+        return tex ? <PropMesh key={`${p.x}-${p.y}-${i}`} p={p} tex={tex} /> : null;
+      })}
     </>
   );
 }
@@ -241,6 +325,8 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
     };
   }, [state.mapId, state.x, state.y]);
 
+  const approach = useRef<{ x: number; z: number; step: number; t: number } | null>(null);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (["z", "Z", "Enter", " "].includes(e.key)) interactRef.current = true;
@@ -278,7 +364,13 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
         ],
         () => {
           useGame.getState().chooseStarter(key);
-          useGame.getState().setPhase("battle");
+          const rival = map.npcs.find((n) => n.id === "rival");
+          approach.current = {
+            x: (rival?.x ?? 12) * TILE + TILE / 2,
+            z: (rival?.y ?? 3) * TILE + TILE / 2,
+            step: 0,
+            t: 0,
+          };
         },
       );
     }
@@ -293,7 +385,31 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
     if (interactRef.current) {
       interactRef.current = false;
       if (s.dialogue) s.advanceDialogue();
-      else interact();
+      else if (!approach.current) interact();
+    }
+
+    // rival caminha até o jogador antes da batalha
+    const ap = approach.current;
+    if (ap) {
+      const tgtX = cur.px + TILE;
+      const tgtZ = cur.pz;
+      const dx = tgtX - ap.x;
+      const dz = tgtZ - ap.z;
+      const dist = Math.hypot(dx, dz);
+      ap.t += dt;
+      ap.step = Math.floor(ap.t * 8) % 2 === 0 ? 1 : 2;
+      if (dist < 3) {
+        approach.current = null;
+        s.say([`${s.rivalName}: Espera aí! Eu vou testar o meu POKéMON contra você!`], () =>
+          useGame.getState().setPhase("battle"),
+        );
+      } else {
+        const v = (60 * dt) / dist;
+        ap.x += dx * Math.min(1, v);
+        ap.z += dz * Math.min(1, v);
+      }
+      force((n) => (n + 1) % 1000000);
+      return;
     }
 
     if (!cur.moving && !s.dialogue && s.phase === "overworld") {
@@ -348,7 +464,10 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
     }
 
     // câmera inclinada seguindo o jogador
-    const viewH = map.outdoor ? 190 : Math.max(map.hpx * 0.95, 130);
+    const aspect0 = size.width / size.height;
+    const viewH = map.outdoor
+      ? Math.min(190, (map.wpx * 0.9) / aspect0)
+      : Math.min(map.hpx * 0.9, (map.wpx * 0.9) / aspect0);
     const dist = viewH / 2 / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
     const aspect = size.width / size.height;
     const viewW = viewH * aspect;
@@ -379,16 +498,26 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
   return (
     <>
       <MapContent map={map} />
-      {map.npcs.map((n) => (
+      {map.npcs
+        .filter((n) => !(approach.current && n.id === "rival"))
+        .map((n) => (
+          <Character
+            key={n.id}
+            url={n.sheet}
+            frames={n.frames ?? 12}
+            frame={n.frames === 4 ? DIR_4[n.facing] : DIR_ROW[n.facing]}
+            x={n.x * TILE + TILE / 2}
+            z={n.y * TILE + TILE / 2}
+          />
+        ))}
+      {approach.current && (
         <Character
-          key={n.id}
-          url={n.sheet}
-          frames={n.frames ?? 12}
-          frame={n.frames === 4 ? DIR_4[n.facing] : DIR_ROW[n.facing]}
-          x={n.x * TILE + TILE / 2}
-          z={n.y * TILE + TILE / 2}
+          url="/game/rival.png"
+          frame={DIR_ROW["left"] + approach.current.step}
+          x={approach.current.x}
+          z={approach.current.z}
         />
-      ))}
+      )}
       {map.id === "lab" && (
         <>
           {[0, 1, 2].map((i) => (
@@ -406,6 +535,8 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
         frame={frame}
         x={cur.px}
         z={cur.pz}
+        w={17}
+        h={20}
         bob={cur.moving && cur.step === 1 ? 0.6 : 0}
       />
     </>

@@ -184,19 +184,23 @@ export function Battle() {
         style={intro ? { animation: "battle-wipe .9s ease-out both" } : undefined}
       />
       {/* cenário */}
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,#8ed0f0_0%,#d8f0ff_55%,#f0e8c8_55%,#e0d0a0_100%)]" />
+      <img
+        src={isWild ? "/game/battle_grass.png" : "/game/battle_indoor.png"}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ imageRendering: "pixelated" }}
+      />
 
       {/* inimigo */}
       <div className="absolute left-4 top-6 z-10 sm:left-10 sm:top-10">
         <Info mon={foe} foe />
       </div>
       <div className="absolute right-6 top-16 z-10 flex flex-col items-center sm:right-24 sm:top-20">
-        <div className="h-3 w-24 rounded-[50%] bg-[#7ac070]/60 blur-[1px]" />
         <img
           src={spriteUrl(foe.species.id)}
           alt={foe.species.name}
           style={{ animation: "battle-in .7s .25s ease-out both", ["--from" as string]: "160px" }}
-          className={`pixelated -mt-24 h-24 w-24 ${shake === "foe" ? "animate-[hit_0.3s]" : ""} ${
+          className={`pixelated h-28 w-28 sm:h-32 sm:w-32 ${shake === "foe" ? "animate-[hit_0.3s]" : ""} ${
             foe.hp <= 0 ? "translate-y-10 opacity-0 transition-all duration-500" : ""
           }`}
         />
@@ -208,11 +212,10 @@ export function Battle() {
           src={spriteUrl(player.species.id, true)}
           alt={player.species.name}
           style={{ animation: "battle-in .7s .25s ease-out both", ["--from" as string]: "-160px" }}
-          className={`pixelated h-28 w-28 ${shake === "player" ? "animate-[hit_0.3s]" : ""} ${
+          className={`pixelated h-32 w-32 sm:h-36 sm:w-36 ${shake === "player" ? "animate-[hit_0.3s]" : ""} ${
             player.hp <= 0 ? "translate-y-10 opacity-0 transition-all duration-500" : ""
           }`}
         />
-        <div className="-mt-2 h-3 w-28 rounded-[50%] bg-[#7ac070]/60 blur-[1px]" />
       </div>
       <div className="absolute bottom-40 right-4 z-10 sm:right-12">
         <Info mon={player} />
