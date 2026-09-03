@@ -287,10 +287,7 @@ export const MAPS: Record<string, GameMap> = {
       [0, 0, 19, 0],
     ]),
     props: [...strip(0, 1, 4, 26), ...strip(15, 1, 19, 26)],
-    warps: [
-      { x: 10, y: 27, to: "pallet", tx: 13, ty: 2, facing: "down", kind: "step" },
-      { x: 10, y: 1, to: "route1", tx: 10, ty: 2, facing: "down", kind: "step" },
-    ],
+    warps: [{ x: 10, y: 27, to: "pallet", tx: 13, ty: 2, facing: "down", kind: "step" }],
     npcs: [],
     signs: [{ x: 6, y: 24, lines: ["ROTA 1", "PALLET TOWN - VIRIDIAN CITY"] }],
     grass: [
