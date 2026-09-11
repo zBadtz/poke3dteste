@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SaveRepository, useGame } from "./store";
 import { Attract } from "./Attract";
 
@@ -12,9 +12,23 @@ export function Title({ onNewGame }: { onNewGame: () => void }) {
   const [stage, setStage] = useState<Stage>("press");
   const [index, setIndex] = useState(0);
   const [fade, setFade] = useState(false);
+  const transitionTimer = useRef<number | null>(null);
   const continueGame = useGame((s) => s.continueGame);
   const hasSave = typeof window !== "undefined" && !!SaveRepository.load();
-  const options = ["NOVO JOGO", hasSave ? "CONTINUAR" : "CONTINUAR (vazio)", "OPÇÕES"];
+  const options = useMemo(
+    () => ["NOVO JOGO", hasSave ? "CONTINUAR" : "CONTINUAR (vazio)", "OPÇÕES"],
+    [hasSave],
+  );
+
+  const select = useCallback((i: number) => {
+    if (fade) return;
+    if (i === 0) {
+      setFade(true);
+      transitionTimer.current = window.setTimeout(onNewGame, 700);
+    } else if (i === 1) {
+      continueGame();
+    }
+  }, [continueGame, fade, onNewGame]);
 
   useEffect(() => {
     if (attract) return;
@@ -30,16 +44,14 @@ export function Title({ onNewGame }: { onNewGame: () => void }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, [attract, options.length, select, stage]);
 
-  function select(i: number) {
-    if (i === 0) {
-      setFade(true);
-      setTimeout(onNewGame, 700);
-    } else if (i === 1) {
-      if (continueGame()) return;
-    }
-  }
+  useEffect(
+    () => () => {
+      if (transitionTimer.current !== null) window.clearTimeout(transitionTimer.current);
+    },
+    [],
+  );
 
   if (attract) return <Attract onDone={() => setAttract(false)} />;
 
@@ -56,11 +68,16 @@ export function Title({ onNewGame }: { onNewGame: () => void }) {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,#1a1030_0%,#3a1330_45%,#7a2410_80%,#c85416_100%)]" />
         <div className="title-flames absolute inset-x-0 bottom-0 h-1/2 opacity-70" />
 
-        <img src="/game/fr/charizard.png" alt="Charizard" className={`${L} title-mon-in`} style={px} />
+        <img
+          src="/game/fr/charizard.png"
+          alt="Charizard"
+          className={`${L} title-mon-in pointer-events-none`}
+          style={px}
+        />
         <img
           src="/game/fr/title_logo.png"
           alt="Pokémon FireRed"
-          className={`${L} title-logo-in`}
+          className={`${L} title-logo-in pointer-events-none`}
           style={px}
         />
         <span className="title-slash pointer-events-none absolute inset-y-0" />

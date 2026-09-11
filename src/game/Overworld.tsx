@@ -45,8 +45,9 @@ const keyOf = (r: number, g: number, b: number) =>
   ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
 
 /**
- * Monta a textura do chão (com os objetos apagados) e uma textura recortada,
- * com fundo transparente, para cada objeto que fica em pé.
+ * Mantém o mapa original no chão e cria recortes transparentes dos objetos
+ * verticais. Nunca preenchemos o retângulo de um prop com uma cor média: esse
+ * preenchimento era a origem dos blocos cinza atrás das casas e árvores.
  */
 function useMapTextures(map: GameMap, base: THREE.Texture): MapTextures {
   return useMemo(() => {
@@ -69,41 +70,27 @@ function useMapTextures(map: GameMap, base: THREE.Texture): MapTextures {
       for (let y = p.y; y < p.y + p.h; y++)
         for (let x = p.x; x < p.x + p.w; x++) isProp[y * map.cols + x] = true;
 
-    // paleta do chão: cores dos tiles onde dá para andar e que não são objeto
-    const counts = new Map<number, number>();
-    let total = 0;
+    // Cores do cenário acessível. Usar todas as cores (em vez de uma paleta
+    // reduzida) preserva os detalhes do piso e remove o fundo dos recortes de
+    // modo consistente, inclusive nas bordas com anti-aliased pixel art.
+    const terrain = new Set<number>();
     for (let ty = 0; ty < map.rows; ty++) {
       for (let tx = 0; tx < map.cols; tx++) {
         if (isProp[ty * map.cols + tx] || isSolid(map, tx, ty)) continue;
-        for (let y = ty * TILE; y < (ty + 1) * TILE; y += 2) {
-          for (let x = tx * TILE; x < (tx + 1) * TILE; x += 2) {
+        for (let y = ty * TILE; y < (ty + 1) * TILE; y++) {
+          for (let x = tx * TILE; x < (tx + 1) * TILE; x++) {
             if (x >= W || y >= H) continue;
             const i = (y * W + x) * 4;
-            const k = keyOf(d[i]!, d[i + 1]!, d[i + 2]!);
-            counts.set(k, (counts.get(k) ?? 0) + 1);
-            total++;
+            terrain.add(keyOf(d[i]!, d[i + 1]!, d[i + 2]!));
           }
         }
       }
     }
-    const palette = new Set<number>();
-    for (const [k, n] of counts) if (n / Math.max(1, total) > 0.008) palette.add(k);
-    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-    const fillKey = sorted[0]?.[0];
-    let fill = "#5cb85c";
-    if (fillKey !== undefined) {
-      // recupera uma cor real correspondente à chave mais comum
-      outer: for (let y = 0; y < H; y += 2)
-        for (let x = 0; x < W; x += 2) {
-          const i = (y * W + x) * 4;
-          if (keyOf(d[i]!, d[i + 1]!, d[i + 2]!) === fillKey) {
-            fill = `rgb(${d[i]},${d[i + 1]},${d[i + 2]})`;
-            break outer;
-          }
-        }
-    }
 
-    // recorta cada objeto e deixa o fundo (cores do chão) transparente
+    // Recorta cada objeto e deixa apenas os pixels reconhecidos como terreno
+    // transparentes. O chão continua intacto sob o billboard, evitando uma
+    // lacuna artificial caso um recorte tenha detalhes que não conseguimos
+    // classificar.
     const props = map.props.map((p) => {
       const w = p.w * TILE;
       const h = p.h * TILE;
@@ -124,7 +111,7 @@ function useMapTextures(map: GameMap, base: THREE.Texture): MapTextures {
           out.data[di] = r;
           out.data[di + 1] = g;
           out.data[di + 2] = b;
-          out.data[di + 3] = map.outdoor && palette.has(keyOf(r, g, b)) ? 0 : 255;
+          out.data[di + 3] = map.outdoor && terrain.has(keyOf(r, g, b)) ? 0 : 255;
         }
       }
       pctx.putImageData(out, 0, 0);
@@ -133,14 +120,7 @@ function useMapTextures(map: GameMap, base: THREE.Texture): MapTextures {
       return t;
     });
 
-    // apaga do chão tudo que virou objeto
-    ctx.fillStyle = fill;
-    for (const p of map.props)
-      ctx.fillRect(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE);
-
-    const ground = new THREE.CanvasTexture(c);
-    pixelate(ground);
-    return { ground, props };
+    return { ground: base, props };
   }, [map, base]);
 }
 
