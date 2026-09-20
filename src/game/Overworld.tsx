@@ -9,17 +9,36 @@ import {
   type PointerEvent as RPointerEvent,
 } from "react";
 import * as THREE from "three";
-import { MAPS, isSolid, inGrass, type Dir, type GameMap, type Prop } from "./maps";
+import { MAPS, isSolid, inGrass, type Dir, type GameMap } from "./maps";
 import { useGame } from "./store";
 import { STARTERS, SPECIES, type StarterKey } from "./data";
+import { SCENE_LAYOUT } from "./scene-layout";
+import atlasAsset from "../assets/world/world-atlas.png.asset.json";
+import palletFloor from "../assets/world/pallet-floor.png.asset.json";
+import house1fFloor from "../assets/world/house1f-floor.png.asset.json";
+import rivalhouseFloor from "../assets/world/rivalhouse-floor.png.asset.json";
+import house2fFloor from "../assets/world/house2f-floor.png.asset.json";
+import labFloor from "../assets/world/lab-floor.png.asset.json";
+import route1Floor from "../assets/world/route1-floor.png.asset.json";
 
 const TILE = 16;
 const DIR_ROW: Record<Dir, number> = { down: 0, up: 3, left: 6, right: 9 };
 const DIR_4: Record<Dir, number> = { down: 0, up: 1, left: 2, right: 3 };
 const STEP_TIME = 0.18;
-/** inclinação da câmera: 0 = de lado, 90 = de cima */
-const PITCH = THREE.MathUtils.degToRad(48);
-const FOV = 26;
+const CAMERA_PITCH = THREE.MathUtils.degToRad(38);
+const CAMERA_YAW = THREE.MathUtils.degToRad(45);
+const BILLBOARD_YAW = THREE.MathUtils.degToRad(45);
+const CAMERA_DISTANCE = 900;
+const ATLAS_SIZE = 1024;
+
+const FLOOR_URLS: Record<string, string> = {
+  pallet: palletFloor.url,
+  house1f: house1fFloor.url,
+  rivalhouse: rivalhouseFloor.url,
+  house2f: house2fFloor.url,
+  lab: labFloor.url,
+  route1: route1Floor.url,
+};
 
 const keys: Record<string, boolean> = {};
 if (typeof window !== "undefined") {
@@ -39,91 +58,6 @@ function pixelate(t: THREE.Texture) {
   return t;
 }
 
-type MapTextures = { ground: THREE.Texture; props: THREE.Texture[] };
-
-const keyOf = (r: number, g: number, b: number) =>
-  ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
-
-/**
- * Mantém o mapa original no chão e cria recortes transparentes dos objetos
- * verticais. Nunca preenchemos o retângulo de um prop com uma cor média: esse
- * preenchimento era a origem dos blocos cinza atrás das casas e árvores.
- */
-function useMapTextures(map: GameMap, base: THREE.Texture): MapTextures {
-  return useMemo(() => {
-    const img = base.image as CanvasImageSource | undefined;
-    if (!img) return { ground: base, props: [] };
-    const W = map.wpx;
-    const H = map.hpx;
-    const c = document.createElement("canvas");
-    c.width = W;
-    c.height = H;
-    const ctx = c.getContext("2d")!;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, 0, 0, W, H);
-    const src = ctx.getImageData(0, 0, W, H);
-    const d = src.data;
-
-    // marca quais tiles viraram objeto em pé
-    const isProp: boolean[] = Array(map.cols * map.rows).fill(false);
-    for (const p of map.props)
-      for (let y = p.y; y < p.y + p.h; y++)
-        for (let x = p.x; x < p.x + p.w; x++) isProp[y * map.cols + x] = true;
-
-    // Cores do cenário acessível. Usar todas as cores (em vez de uma paleta
-    // reduzida) preserva os detalhes do piso e remove o fundo dos recortes de
-    // modo consistente, inclusive nas bordas com anti-aliased pixel art.
-    const terrain = new Set<number>();
-    for (let ty = 0; ty < map.rows; ty++) {
-      for (let tx = 0; tx < map.cols; tx++) {
-        if (isProp[ty * map.cols + tx] || isSolid(map, tx, ty)) continue;
-        for (let y = ty * TILE; y < (ty + 1) * TILE; y++) {
-          for (let x = tx * TILE; x < (tx + 1) * TILE; x++) {
-            if (x >= W || y >= H) continue;
-            const i = (y * W + x) * 4;
-            terrain.add(keyOf(d[i]!, d[i + 1]!, d[i + 2]!));
-          }
-        }
-      }
-    }
-
-    // Recorta cada objeto e deixa apenas os pixels reconhecidos como terreno
-    // transparentes. O chão continua intacto sob o billboard, evitando uma
-    // lacuna artificial caso um recorte tenha detalhes que não conseguimos
-    // classificar.
-    const props = map.props.map((p) => {
-      const w = p.w * TILE;
-      const h = p.h * TILE;
-      const pc = document.createElement("canvas");
-      pc.width = w;
-      pc.height = h;
-      const pctx = pc.getContext("2d")!;
-      const out = pctx.createImageData(w, h);
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          const sx = p.x * TILE + x;
-          const sy = p.y * TILE + y;
-          const si = (sy * W + sx) * 4;
-          const di = (y * w + x) * 4;
-          const r = d[si]!;
-          const g = d[si + 1]!;
-          const b = d[si + 2]!;
-          out.data[di] = r;
-          out.data[di + 1] = g;
-          out.data[di + 2] = b;
-          out.data[di + 3] = map.outdoor && terrain.has(keyOf(r, g, b)) ? 0 : 255;
-        }
-      }
-      pctx.putImageData(out, 0, 0);
-      const t = new THREE.CanvasTexture(pc);
-      pixelate(t);
-      return t;
-    });
-
-    return { ground: base, props };
-  }, [map, base]);
-}
-
 function Ground({ map, tex }: { map: GameMap; tex: THREE.Texture }) {
   return (
     <mesh rotation-x={-Math.PI / 2} position={[map.wpx / 2, 0, map.hpx / 2]} receiveShadow>
@@ -133,19 +67,40 @@ function Ground({ map, tex }: { map: GameMap; tex: THREE.Texture }) {
   );
 }
 
-/** Um recorte do mapa que fica de pé no mundo. */
-function PropMesh({ p, tex }: { p: Prop; tex: THREE.Texture }) {
-  const w = p.w * TILE;
-  const h = p.h * TILE;
+type SceneProp = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  sprite: readonly [number, number, number, number];
+  anchor: "foot";
+  layer: "structure" | "foreground";
+};
+
+function ScenePropMesh({ prop, atlas }: { prop: SceneProp; atlas: THREE.Texture }) {
+  const [sx, sy, sw, sh] = prop.sprite;
+  const texture = useMemo(() => {
+    const next = atlas.clone();
+    pixelate(next);
+    next.repeat.set(sw / ATLAS_SIZE, sh / ATLAS_SIZE);
+    next.offset.set(sx / ATLAS_SIZE, 1 - (sy + sh) / ATLAS_SIZE);
+    next.needsUpdate = true;
+    return next;
+  }, [atlas, sh, sw, sx, sy]);
+  useEffect(() => () => texture.dispose(), [texture]);
+
+  const baseX = (prop.x + prop.w / 2) * TILE;
+  const baseZ = (prop.y + prop.h) * TILE - 1;
+  const visualHeight = Math.max(sh, prop.layer === "structure" ? prop.h * TILE * 1.08 : sh);
   return (
-    <group position={[p.x * TILE + w / 2, 0, (p.y + p.h) * TILE - 1]}>
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.2, -h / 3]}>
-        <planeGeometry args={[w, (h * 2) / 3]} />
+    <group position={[baseX, 0, baseZ]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.22, -visualHeight * 0.2]}>
+        <planeGeometry args={[sw * 0.78, Math.max(5, visualHeight * 0.32)]} />
         <meshBasicMaterial color="#000" transparent opacity={0.12} />
       </mesh>
-      <mesh position={[0, h / 2, 0]}>
-        <planeGeometry args={[w, h]} />
-        <meshBasicMaterial map={tex} transparent alphaTest={0.5} />
+      <mesh position={[0, visualHeight / 2, 0]} rotation-y={BILLBOARD_YAW}>
+        <planeGeometry args={[sw, visualHeight]} />
+        <meshBasicMaterial map={texture} transparent alphaTest={0.35} />
       </mesh>
     </group>
   );
@@ -191,7 +146,7 @@ function Character({
         <circleGeometry args={[6, 18]} />
         <meshBasicMaterial color="#000" transparent opacity={0.25} />
       </mesh>
-      <mesh position={[0, h / 2 + bob, 0]}>
+      <mesh position={[0, h / 2 + bob, 0]} rotation-y={BILLBOARD_YAW}>
         <planeGeometry args={[w, h]} />
         <meshBasicMaterial map={tex} alphaTest={0.5} />
       </mesh>
@@ -208,7 +163,7 @@ function PokeBall({ x, z, taken }: { x: number; z: number; taken: boolean }) {
         <circleGeometry args={[4, 16]} />
         <meshBasicMaterial color="#000" transparent opacity={0.22} />
       </mesh>
-      <mesh position={[0, 5, 0]}>
+      <mesh position={[0, 5, 0]} rotation-y={BILLBOARD_YAW}>
         <planeGeometry args={[10, 10]} />
         <meshBasicMaterial map={tex as THREE.Texture} transparent alphaTest={0.4} />
       </mesh>
@@ -231,7 +186,7 @@ function GrassPatches({ map }: { map: GameMap }) {
   return (
     <>
       {tufts.map(([x, z], i) => (
-        <mesh key={i} position={[x, 4, z - 2]}>
+        <mesh key={i} position={[x, 4, z - 2]} rotation-y={BILLBOARD_YAW}>
           <planeGeometry args={[TILE, 8]} />
           <meshBasicMaterial color={i % 2 ? "#3f9c46" : "#4bb055"} transparent opacity={0.9} />
         </mesh>
@@ -255,16 +210,17 @@ type Player = {
 };
 
 function MapContent({ map }: { map: GameMap }) {
-  const base = useTexture(map.image, (t) => pixelate(t as THREE.Texture));
-  const { ground, props } = useMapTextures(map, base as THREE.Texture);
+  const floorUrl = FLOOR_URLS[map.id] ?? map.image;
+  const floor = useTexture(floorUrl, (t) => pixelate(t as THREE.Texture));
+  const atlas = useTexture(atlasAsset.url, (t) => pixelate(t as THREE.Texture));
+  const props = (SCENE_LAYOUT[map.id as keyof typeof SCENE_LAYOUT] ?? []) as readonly SceneProp[];
   return (
     <>
-      <Ground map={map} tex={ground} />
+      <Ground map={map} tex={floor as THREE.Texture} />
       <GrassPatches map={map} />
-      {map.props.map((p, i) => {
-        const tex = props[i];
-        return tex ? <PropMesh key={`${p.x}-${p.y}-${i}`} p={p} tex={tex} /> : null;
-      })}
+      {props.map((prop, index) => (
+        <ScenePropMesh key={`${map.id}-${prop.x}-${prop.y}-${index}`} prop={prop} atlas={atlas as THREE.Texture} />
+      ))}
     </>
   );
 }
@@ -443,16 +399,15 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
       }
     }
 
-    // câmera inclinada seguindo o jogador
+    // câmera ortográfica isométrica seguindo o jogador
     const aspect0 = size.width / size.height;
     const viewH = map.outdoor
-      ? Math.min(190, (map.wpx * 0.9) / aspect0)
-      : Math.min(map.hpx * 0.9, (map.wpx * 0.9) / aspect0);
-    const dist = viewH / 2 / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+      ? Math.min(220, (map.wpx * 0.82) / aspect0)
+      : Math.min(map.hpx * 0.86, (map.wpx * 0.78) / aspect0);
     const aspect = size.width / size.height;
     const viewW = viewH * aspect;
     const halfW = viewW / 2;
-    const halfD = (viewH * Math.cos(PITCH)) / 2 + 40;
+    const halfD = viewH * 0.46 + 38;
 
     const tx =
       map.wpx <= viewW ? map.wpx / 2 : THREE.MathUtils.clamp(cur.px, halfW, map.wpx - halfW);
@@ -462,11 +417,19 @@ function Scene({ onWarp }: { onWarp: (to: string, tx: number, ty: number, facing
         : THREE.MathUtils.clamp(cur.pz, halfD, map.hpx - halfD);
 
     const target = new THREE.Vector3(tx, 8, tz);
+    const horizontalDistance = Math.cos(CAMERA_PITCH) * CAMERA_DISTANCE;
     const wanted = new THREE.Vector3(
-      target.x,
-      target.y + Math.sin(PITCH) * dist,
-      target.z + Math.cos(PITCH) * dist,
+      target.x + Math.sin(CAMERA_YAW) * horizontalDistance,
+      target.y + Math.sin(CAMERA_PITCH) * CAMERA_DISTANCE,
+      target.z + Math.cos(CAMERA_YAW) * horizontalDistance,
     );
+    if (camera instanceof THREE.OrthographicCamera) {
+      camera.left = -viewW / 2;
+      camera.right = viewW / 2;
+      camera.top = viewH / 2;
+      camera.bottom = -viewH / 2;
+      camera.updateProjectionMatrix();
+    }
     camera.position.lerp(wanted, 1 - Math.exp(-12 * dt));
     camera.lookAt(target.x, target.y, target.z);
     force((n) => (n + 1) % 1000000);
@@ -541,8 +504,10 @@ export function Overworld() {
     <div className="relative h-full w-full">
       <Canvas
         dpr={1}
+        flat
+        orthographic
         gl={{ antialias: false }}
-        camera={{ fov: FOV, position: [0, 200, 200], near: 1, far: 4000 }}
+        camera={{ position: [500, 700, 500], near: 1, far: 4000, zoom: 1 }}
       >
         <color attach="background" args={[outdoor ? "#7fc8e8" : "#101018"]} />
         <fog attach="fog" args={[outdoor ? "#7fc8e8" : "#101018", 600, 1200]} />
